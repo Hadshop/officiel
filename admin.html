@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tableau de bord — HADShop Admin</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+
+  <!-- Chargement du thème AVANT Tailwind -->
+  <script>
+    (function() {
+      const settings = JSON.parse(localStorage.getItem("hadshop_settings")) || {};
+      const theme = settings.theme || "bordeaux";
+      
+      const THEME_COLORS = {
+        bordeaux: { primary: "#6b2a24", "primary-foreground": "#fcf6f5", secondary: "#f2dfd9", "muted-foreground": "#8a6a68", blush: "#f6e6e3", gold: "#c49a4a", background: "#fdfcfb", foreground: "#3b1c1a", border: "#ebd8d4" },
+        noirOr: { primary: "#1a1a1a", "primary-foreground": "#d4af37", secondary: "#f0e6d2", "muted-foreground": "#6a6a6a", blush: "#f5efe0", gold: "#d4af37", background: "#faf6ec", foreground: "#1a1a1a", border: "#d4cbb5" },
+        pastel: { primary: "#8b6b7d", "primary-foreground": "#fefefe", secondary: "#f5e6ee", "muted-foreground": "#a893a0", blush: "#fdf0f5", gold: "#d4a5c0", background: "#fffafc", foreground: "#4a3540", border: "#ead5de" },
+        emeraude: { primary: "#1e4d3a", "primary-foreground": "#f0f9f4", secondary: "#d8e8df", "muted-foreground": "#4a6a5a", blush: "#e0f0e6", gold: "#b8933f", background: "#f8fbf9", foreground: "#1a3a2a", border: "#c8dcd0" }
+      };
+      
+      window.__ADMIN_THEME__ = THEME_COLORS[theme] || THEME_COLORS.bordeaux;
+    })();
+  </script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ...window.__ADMIN_THEME__,
+            destructive: "#dc2626", success: "#16a34a"
+          },
+          fontFamily: { sans: ["Jost", "sans-serif"], display: ["Cormorant Garamond", "serif"] }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-background text-foreground font-sans antialiased pb-24">
+
+  <header class="bg-primary text-primary-foreground p-4 sticky top-0 z-40 shadow-md flex justify-between items-center">
+    <div id="admin-header-title" class="font-display text-xl tracking-widest">HADSHOP ADMIN</div>
+    <div class="flex items-center gap-4">
+      <button onclick="switchTab('settings')" class="hover:opacity-80 transition-opacity" title="Paramètres">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <button onclick="logout()" class="text-xs uppercase tracking-widest border border-white/30 px-3 py-1 hover:bg-white/10">Déconnexion</button>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto p-4 mt-4">
+    <!-- DASHBOARD -->
+    <section id="tab-dashboard" class="admin-tab">
+      <h1 class="text-3xl font-display text-primary mb-6">Vue d'ensemble</h1>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="bg-white p-4 border border-border text-center shadow-sm"><p class="text-xs text-muted-foreground uppercase">Commandes</p><p id="stat-orders" class="text-3xl font-display mt-2">0</p></div>
+        <div class="bg-white p-4 border border-border text-center shadow-sm"><p class="text-xs text-muted-foreground uppercase">Produits</p><p id="stat-products" class="text-3xl font-display mt-2">0</p></div>
+        <div class="bg-white p-4 border border-border text-center shadow-sm"><p class="text-xs text-muted-foreground uppercase">Alertes</p><p id="stat-alerts" class="text-3xl font-display mt-2 text-red-600">0</p></div>
+      </div>
+
+      <div id="stock-alerts" class="mt-8"></div>
+    </section>
+
+    <!-- PRODUITS -->
+    <section id="tab-products" class="admin-tab hidden">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-display text-primary">Produits</h1>
+        <button onclick="openProductModal()" class="bg-primary text-white text-xs px-4 py-2 uppercase hover:opacity-90">+ Ajouter</button>
+      </div>
+      <div id="product-list" class="space-y-3"></div>
+    </section>
+
+    <!-- COMMANDES -->
+    <section id="tab-orders" class="admin-tab hidden">
+      <h1 class="text-3xl font-display text-primary mb-6">Commandes</h1>
+      <div id="order-list" class="space-y-3"></div>
+    </section>
+
+    <!-- FOURNISSEURS -->
+    <section id="tab-suppliers" class="admin-tab hidden">
+      <div class="flex justify-between items-center mb-6">
+        <h1 class="text-3xl font-display text-primary">Fournisseurs</h1>
+        <button onclick="openSupplierModal()" class="bg-primary text-white text-xs px-4 py-2 uppercase hover:opacity-90">+ Ajouter</button>
+      </div>
+      <div id="supplier-list" class="space-y-3"></div>
+    </section>
+
+    <!-- FINANCES -->
+    <section id="tab-finances" class="admin-tab hidden">
+      <h1 class="text-3xl font-display text-primary mb-6">Finances</h1>
+      <div id="finance-dashboard" class="space-y-4 mb-8"></div>
+      <div class="flex justify-between items-center mb-4 mt-8 border-t border-border pt-6">
+        <h2 class="text-xl font-display text-primary">Détail des dépenses</h2>
+        <button onclick="openExpenseModal()" class="bg-primary text-white text-xs px-4 py-2 uppercase hover:opacity-90">+ Ajouter</button>
+      </div>
+      <div id="expense-list" class="space-y-3"></div>
+    </section>
+
+    <!-- PARAMÈTRES -->
+    <section id="tab-settings" class="admin-tab hidden">
+      <h1 class="text-3xl font-display text-primary mb-6">Paramètres</h1>
+      
+      <div class="bg-white p-6 border border-border shadow-sm mb-6">
+        <h2 class="text-lg font-display text-primary mb-4">Informations générales</h2>
+        <form id="form-settings" class="space-y-4">
+          <div>
+            <label class="block text-xs uppercase text-muted-foreground mb-1">Numéro WhatsApp</label>
+            <input type="text" id="set-whatsapp" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" placeholder="Ex: 2290191647720" />
+          </div>
+          <div>
+            <label class="block text-xs uppercase text-muted-foreground mb-1">Nom de la boutique</label>
+            <input type="text" id="set-name" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+          </div>
+          <div>
+            <label class="block text-xs uppercase text-muted-foreground mb-1">Phrase d'accroche (Footer)</label>
+            <input type="text" id="set-hero-text" class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+          </div>
+          
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs uppercase text-muted-foreground mb-1">Titre d'accueil (Ligne 1)</label>
+              <input type="text" id="set-hero-line1" class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" placeholder="L'élégance," />
+            </div>
+            <div>
+              <label class="block text-xs uppercase text-muted-foreground mb-1">Titre d'accueil (Ligne 2)</label>
+              <input type="text" id="set-hero-line2" class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" placeholder="tout simplement." />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs uppercase text-muted-foreground mb-1">Texte de présentation (accueil)</label>
+            <textarea id="set-hero-subtext" rows="3" class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background"></textarea>
+          </div>
+
+          <!-- ✅ Image d'accueil -->
+          <div>
+            <label class="block text-xs uppercase text-muted-foreground mb-1">Image d'accueil (hero)</label>
+            <input type="file" id="hero-image-input" accept="image/*" class="w-full border border-border p-2 text-sm outline-none focus:border-primary bg-background" />
+            <p id="hero-upload-status" class="text-xs mt-1 text-muted-foreground"></p>
+            <div id="hero-image-preview" class="mt-2 hidden">
+              <img id="hero-preview-img" src="" class="w-48 h-32 object-cover border border-border" />
+              <button type="button" onclick="removeHeroImage()" class="text-[10px] text-red-500 mt-1 hover:underline block">Retirer l'image</button>
+            </div>
+            <input type="hidden" id="hero-image-base64" />
+          </div>
+
+          <!-- Mot de passe administrateur -->
+          <div>
+            <label class="block text-xs uppercase text-muted-foreground mb-1">Mot de passe administrateur</label>
+            <input type="text" id="set-password" class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" placeholder="Laissez vide pour utiliser le mot de passe auto" />
+            <p class="text-[10px] text-muted-foreground mt-1">
+              Laissez vide pour utiliser le mot de passe auto : <strong id="default-password-hint">hadshop2026</strong>
+            </p>
+          </div>
+
+          <div>
+            <label class="block text-xs uppercase text-muted-foreground mb-2">Thème du site</label>
+            <div id="theme-picker" class="grid grid-cols-2 gap-3"></div>
+            <p class="text-[10px] text-muted-foreground mt-2">
+              Thème actuel : <strong id="current-theme-name">Bordeaux Classique</strong>
+            </p>
+          </div>
+
+          <button type="submit" class="w-full bg-primary text-white py-3 text-xs uppercase hover:opacity-90 mt-4">Sauvegarder les paramètres</button>
+        </form>
+      </div>
+
+      <div class="bg-white p-6 border border-border shadow-sm">
+        <h2 class="text-lg font-display text-primary mb-4">Gestion des catégories</h2>
+        <form id="form-add-category" class="flex gap-2 mb-6">
+          <input type="text" id="new-category-name" placeholder="Nom de la nouvelle catégorie" required class="flex-1 border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+          <button type="submit" class="bg-primary text-white text-xs px-4 py-2 uppercase hover:opacity-90">Ajouter</button>
+        </form>
+        <ul id="category-list" class="space-y-2"></ul>
+      </div>
+    </section>
+  </main>
+
+  <!-- NAV BAS -->
+  <nav class="fixed bottom-0 inset-x-0 bg-white border-t border-border flex justify-around py-2 z-40 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+    <button onclick="switchTab('dashboard', this)" class="nav-btn text-primary flex flex-col items-center gap-0.5 min-w-[60px]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg><span class="text-[9px] uppercase font-medium">Accueil</span></button>
+    <button onclick="switchTab('products', this)" class="nav-btn text-muted-foreground flex flex-col items-center gap-0.5 min-w-[60px]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg><span class="text-[9px] uppercase font-medium">Produits</span></button>
+    <button onclick="switchTab('orders', this)" class="nav-btn text-muted-foreground flex flex-col items-center gap-0.5 min-w-[60px]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg><span class="text-[9px] uppercase font-medium">Commandes</span></button>
+    <button onclick="switchTab('suppliers', this)" class="nav-btn text-muted-foreground flex flex-col items-center gap-0.5 min-w-[60px]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span class="text-[9px] uppercase font-medium">Fourn.</span></button>
+    <button onclick="switchTab('finances', this)" class="nav-btn text-muted-foreground flex flex-col items-center gap-0.5 min-w-[60px]"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg><span class="text-[9px] uppercase font-medium">Finances</span></button>
+  </nav>
+
+  <!-- MODAL PRODUIT -->
+  <div id="modal-product" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md p-6 border border-border shadow-lg max-h-[90vh] overflow-y-auto">
+      <h2 id="modal-title" class="text-2xl font-display text-primary mb-4">Nouveau produit</h2>
+      <form id="form-product" class="space-y-3">
+        <input type="hidden" id="p-id" />
+        <div>
+          <label class="block text-[10px] uppercase text-muted-foreground mb-1">Image du produit (Max 10 Mo)</label>
+          <input type="file" id="p-image" accept="image/*" class="w-full border border-border p-2 text-sm outline-none focus:border-primary bg-background" />
+          <p id="upload-status" class="text-xs mt-1 text-muted-foreground"></p>
+          <div id="image-preview" class="mt-2 hidden"><img id="preview-img" src="" class="w-24 h-32 object-cover border border-border" /><button type="button" onclick="removeImage()" class="text-[10px] text-red-500 mt-1 hover:underline">Retirer l'image</button></div>
+          <input type="hidden" id="p-image-base64" />
+        </div>
+        <input type="text" id="p-name" placeholder="Nom du produit" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+        <select id="p-category" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background">
+          <option value="">-- Catégorie --</option>
+        </select>
+        <div class="grid grid-cols-2 gap-3">
+          <input type="number" id="p-price" placeholder="Prix (FCFA)" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+          <input type="number" id="p-cost" placeholder="Coût d'achat" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+        </div>
+        <div>
+          <label class="block text-[10px] uppercase text-muted-foreground mb-1">Prix promo (optionnel)</label>
+          <input type="number" id="p-promo" placeholder="Ex: 65000" class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+          <p id="promo-preview" class="text-xs mt-1 hidden text-green-600"></p>
+        </div>
+        <input type="number" id="p-stock" placeholder="Stock" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+        <div class="flex gap-3 mt-6">
+          <button type="button" onclick="closeProductModal()" class="w-1/2 border border-border text-foreground py-3 text-xs uppercase hover:bg-gray-50">Annuler</button>
+          <button type="submit" class="w-1/2 bg-primary text-white py-3 text-xs uppercase hover:opacity-90">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL FOURNISSEUR -->
+  <div id="modal-supplier" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md p-6 border border-border shadow-lg">
+      <h2 class="text-2xl font-display text-primary mb-4">Nouveau fournisseur</h2>
+      <form id="form-supplier" class="space-y-3">
+        <input type="text" id="s-name" placeholder="Nom" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+        <input type="text" id="s-phone" placeholder="Téléphone" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+        <textarea id="s-notes" placeholder="Notes" class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" rows="2"></textarea>
+        <div class="flex gap-3 mt-6"><button type="button" onclick="document.getElementById('modal-supplier').classList.add('hidden')" class="w-1/2 border border-border text-foreground py-3 text-xs uppercase">Annuler</button><button type="submit" class="w-1/2 bg-primary text-white py-3 text-xs uppercase">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL DÉPENSE -->
+  <div id="modal-expense" class="hidden fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+    <div class="bg-white w-full max-w-md p-6 border border-border shadow-lg">
+      <h2 class="text-2xl font-display text-primary mb-4">Nouvelle dépense</h2>
+      <form id="form-expense" class="space-y-3">
+        <input type="text" id="e-desc" placeholder="Description" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+        <select id="e-cat" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background">
+          <option value="">-- Catégorie --</option><option value="Achat de stock">Achat de stock</option><option value="Livraison">Livraison</option><option value="Publicité / Marketing">Publicité / Marketing</option><option value="Emballage">Emballage</option><option value="Autre">Autre</option>
+        </select>
+        <input type="number" id="e-amount" placeholder="Montant (FCFA)" required class="w-full border border-border p-3 text-sm outline-none focus:border-primary bg-background" />
+        <div class="flex gap-3 mt-6"><button type="button" onclick="document.getElementById('modal-expense').classList.add('hidden')" class="w-1/2 border border-border text-foreground py-3 text-xs uppercase">Annuler</button><button type="submit" class="w-1/2 bg-primary text-white py-3 text-xs uppercase">Enregistrer</button></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="admin-script.js"></script>
+  <script>
+    (async () => {
+      checkAuth();
+      
+      await loadAllData();
+      await cleanOldOrders();
+      
+      if (CACHE.settings) {
+        localStorage.setItem("hadshop_settings", JSON.stringify(CACHE.settings));
+      }
+      
+      renderAll();
+      setupEvents();
+    })();
+
+    function setupEvents() {
+      const imageInput = document.getElementById("p-image");
+      const uploadStatus = document.getElementById("upload-status");
+      const imagePreview = document.getElementById("image-preview");
+      const previewImg = document.getElementById("preview-img");
+      const imageBase64Input = document.getElementById("p-image-base64");
+
+      imageInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) { alert("L'image est trop lourde (max 10 Mo)."); imageInput.value = ""; return; }
+        uploadStatus.textContent = "Compression...";
+        uploadStatus.classList.remove("text-red-500", "text-green-600"); uploadStatus.classList.add("text-blue-500");
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const MAX_WIDTH = 800;
+            let width = img.width; let height = img.height;
+            if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.7);
+            previewImg.src = compressedBase64; imagePreview.classList.remove("hidden"); imageBase64Input.value = compressedBase64;
+            const finalSize = Math.round((compressedBase64.length * 3) / 4 / 1024);
+            uploadStatus.textContent = `✅ Compressée : ~${finalSize} Ko`;
+            uploadStatus.classList.remove("text-blue-500"); uploadStatus.classList.add("text-green-600");
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      // ✅ Upload de l'image d'accueil
+      const heroImageInput = document.getElementById("hero-image-input");
+      const heroUploadStatus = document.getElementById("hero-upload-status");
+      const heroImagePreview = document.getElementById("hero-image-preview");
+      const heroPreviewImg = document.getElementById("hero-preview-img");
+      const heroBase64Input = document.getElementById("hero-image-base64");
+
+      heroImageInput.addEventListener("change", (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 10 * 1024 * 1024) { alert("L'image est trop lourde (max 10 Mo)."); heroImageInput.value = ""; return; }
+        heroUploadStatus.textContent = "Compression...";
+        heroUploadStatus.classList.remove("text-red-500", "text-green-600"); heroUploadStatus.classList.add("text-blue-500");
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement("canvas");
+            const MAX_WIDTH = 1200;
+            let width = img.width; let height = img.height;
+            if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+            canvas.width = width; canvas.height = height;
+            const ctx = canvas.getContext("2d"); ctx.drawImage(img, 0, 0, width, height);
+            const compressedBase64 = canvas.toDataURL("image/jpeg", 0.75);
+            heroPreviewImg.src = compressedBase64; heroImagePreview.classList.remove("hidden"); heroBase64Input.value = compressedBase64;
+            const finalSize = Math.round((compressedBase64.length * 3) / 4 / 1024);
+            heroUploadStatus.textContent = `✅ Compressée : ~${finalSize} Ko`;
+            heroUploadStatus.classList.remove("text-blue-500"); heroUploadStatus.classList.add("text-green-600");
+          };
+          img.src = event.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+
+      document.getElementById("form-product").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const promoValue = document.getElementById("p-promo").value;
+        const productData = { name: document.getElementById("p-name").value, category: document.getElementById("p-category").value, price: Number(document.getElementById("p-price").value), cost: Number(document.getElementById("p-cost").value), promoPrice: promoValue ? Number(promoValue) : null, stock: Number(document.getElementById("p-stock").value), image: imageBase64Input.value || null, status: "Publié" };
+        const id = document.getElementById("p-id").value;
+        if (id) await updateProduct({ ...productData, id }); else await addProduct(productData);
+        closeProductModal(); renderAll();
+      });
+
+      document.getElementById("form-supplier").addEventListener("submit", async (e) => { 
+        e.preventDefault(); 
+        await addSupplier({ name: document.getElementById("s-name").value, phone: document.getElementById("s-phone").value, notes: document.getElementById("s-notes").value }); 
+        document.getElementById("modal-supplier").classList.add("hidden"); 
+        renderAll(); 
+      });
+      
+      document.getElementById("form-expense").addEventListener("submit", async (e) => { 
+        e.preventDefault(); 
+        await addExpense({ desc: document.getElementById("e-desc").value, cat: document.getElementById("e-cat").value, amount: Number(document.getElementById("e-amount").value) }); 
+        document.getElementById("modal-expense").classList.add("hidden"); 
+        renderAll(); 
+      });
+
+      document.getElementById("form-settings").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        await saveSettings({ 
+          whatsapp: document.getElementById("set-whatsapp").value, 
+          shopName: document.getElementById("set-name").value, 
+          heroText: document.getElementById("set-hero-text").value, 
+          heroLine1: document.getElementById("set-hero-line1").value,
+          heroLine2: document.getElementById("set-hero-line2").value,
+          heroSubtext: document.getElementById("set-hero-subtext").value,
+          adminPassword: document.getElementById("set-password").value,
+          heroImage: document.getElementById("hero-image-base64").value || "" // ✅ Nouveau
+        });
+        
+        localStorage.setItem("hadshop_settings", JSON.stringify(CACHE.settings));
+        
+        alert("Paramètres sauvegardés !");
+        renderAll();
+      });
+
+      document.getElementById("form-add-category").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const newCat = document.getElementById("new-category-name").value.trim();
+        if (!newCat) return;
+        const settings = getSettings();
+        if (settings.categories.includes(newCat)) { alert("Cette catégorie existe déjà."); return; }
+        settings.categories.push(newCat);
+        await saveSettings({ categories: settings.categories });
+        localStorage.setItem("hadshop_settings", JSON.stringify(CACHE.settings));
+        document.getElementById("new-category-name").value = "";
+        renderAll();
+      });
+
+      document.getElementById("p-price").addEventListener("input", updatePromoPreview);
+      document.getElementById("p-promo").addEventListener("input", updatePromoPreview);
+    }
+
+    function removeImage() { 
+      document.getElementById("p-image").value = ""; 
+      document.getElementById("p-image-base64").value = ""; 
+      document.getElementById("image-preview").classList.add("hidden"); 
+      document.getElementById("upload-status").textContent = ""; 
+    }
+
+    function removeHeroImage() {
+      document.getElementById("hero-image-input").value = "";
+      document.getElementById("hero-image-base64").value = "";
+      document.getElementById("hero-image-preview").classList.add("hidden");
+      document.getElementById("hero-upload-status").textContent = "";
+    }
+
+    function switchTab(tabId, btn = null) {
+      document.querySelectorAll(".admin-tab").forEach(el => el.classList.add("hidden"));
+      document.getElementById(`tab-${tabId}`).classList.remove("hidden");
+      if (btn) {
+        document.querySelectorAll(".nav-btn").forEach(b => { b.classList.remove("text-primary"); b.classList.add("text-muted-foreground"); });
+        btn.classList.remove("text-muted-foreground"); btn.classList.add("text-primary");
+      }
+      renderAll();
+    }
+
+    function openProductModal(product = null) {
+      document.getElementById("modal-product").classList.remove("hidden");
+      document.getElementById("form-product").reset();
+      document.getElementById("promo-preview").classList.add("hidden");
+      removeImage();
+      
+      const settings = getSettings();
+      const catSelect = document.getElementById("p-category");
+      catSelect.innerHTML = `<option value="">-- Catégorie --</option>` + 
+        settings.categories.map(c => `<option value="${c}">${c}</option>`).join("");
+
+      if (product) {
+        document.getElementById("modal-title").textContent = "Modifier le produit";
+        document.getElementById("p-id").value = product.id;
+        document.getElementById("p-name").value = product.name;
+        document.getElementById("p-category").value = product.category;
+        document.getElementById("p-price").value = product.price;
+        document.getElementById("p-cost").value = product.cost;
+        document.getElementById("p-stock").value = product.stock;
+        document.getElementById("p-promo").value = product.promoPrice || "";
+        updatePromoPreview();
+        if (product.image) { 
+          document.getElementById("preview-img").src = product.image; 
+          document.getElementById("image-preview").classList.remove("hidden"); 
+          document.getElementById("p-image-base64").value = product.image; 
+          document.getElementById("upload-status").textContent = "Image actuelle"; 
+        }
+      } else {
+        document.getElementById("modal-title").textContent = "Nouveau produit";
+        document.getElementById("p-id").value = "";
+      }
+    }
+    function closeProductModal() { document.getElementById("modal-product").classList.add("hidden"); }
+    function openSupplierModal() { document.getElementById("modal-supplier").classList.remove("hidden"); document.getElementById("form-supplier").reset(); }
+    function openExpenseModal() { document.getElementById("modal-expense").classList.remove("hidden"); document.getElementById("form-expense").reset(); }
+
+    async function selectTheme(themeKey) {
+      await saveSettings({ theme: themeKey });
+      localStorage.setItem("hadshop_settings", JSON.stringify(CACHE.settings));
+      window.location.reload();
+    }
+
+    function renderAll() {
+      const products = CACHE.products;
+      const orders = CACHE.orders;
+      const suppliers = CACHE.suppliers;
+      const expenses = CACHE.expenses;
+      const settings = getSettings();
+
+      document.getElementById("admin-header-title").textContent = settings.shopName.toUpperCase() + " ADMIN";
+
+      document.getElementById("stat-orders").textContent = orders.length;
+      document.getElementById("stat-products").textContent = products.length;
+
+      const stockAlerts = products.filter(p => p.stock !== undefined && Number(p.stock) <= 5 && Number(p.stock) > 0);
+      const outOfStock = products.filter(p => p.stock !== undefined && Number(p.stock) === 0);
+      document.getElementById("stat-alerts").textContent = stockAlerts.length + outOfStock.length;
+
+      const alertsContainer = document.getElementById("stock-alerts");
+      if (alertsContainer) {
+        if (stockAlerts.length === 0 && outOfStock.length === 0) {
+          alertsContainer.innerHTML = `<div class="bg-green-50 border-l-4 border-green-500 p-4 rounded"><p class="text-sm text-green-700 font-medium">✅ Tous les stocks sont OK</p></div>`;
+        } else {
+          let html = "";
+          if (outOfStock.length > 0) {
+            html += `<div class="bg-red-50 border-l-4 border-red-500 p-4 rounded mb-3"><p class="text-sm text-red-700 font-bold mb-2">🚨 ${outOfStock.length} produit(s) en rupture de stock</p><ul class="text-xs text-red-600 space-y-1">${outOfStock.map(p => `<li>• ${p.name} (${p.category})</li>`).join("")}</ul></div>`;
+          }
+          if (stockAlerts.length > 0) {
+            html += `<div class="bg-orange-50 border-l-4 border-orange-500 p-4 rounded mb-3"><p class="text-sm text-orange-700 font-bold mb-2">⚠️ ${stockAlerts.length} produit(s) à stock bas (≤ 5)</p><ul class="text-xs text-orange-600 space-y-1">${stockAlerts.map(p => `<li>• ${p.name} — <strong>${p.stock} restant(s)</strong></li>`).join("")}</ul></div>`;
+          }
+          alertsContainer.innerHTML = html;
+        }
+      }
+
+      document.getElementById("product-list").innerHTML = products.map(p => {
+        const percent = p.promoPrice ? Math.round(((p.price - p.promoPrice) / p.price) * 100) : 0;
+        return `
+          <div class="bg-white p-4 border border-border flex justify-between items-start">
+            <div class="flex gap-3">
+              ${p.image ? `<img src="${p.image}" class="w-12 h-16 object-cover border border-border bg-gray-100" />` : `<div class="w-12 h-16 border border-border bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">Sans img</div>`}
+              <div>
+                <p class="font-medium text-sm">${p.name}</p>
+                <p class="text-xs text-muted-foreground mb-1">${p.category} • ${p.status}</p>
+                <p class="text-xs ${p.stock === 0 ? 'text-red-500' : 'text-green-600'}">Stock: ${p.stock}</p>
+              </div>
+            </div>
+            <div class="text-right">
+              ${p.promoPrice ? `<p class="text-[10px] text-muted-foreground line-through">${p.price.toLocaleString('fr-FR')} FCFA</p><p class="text-sm font-display text-primary">${p.promoPrice.toLocaleString('fr-FR')} FCFA</p><p class="text-[10px] text-green-600 font-medium">-${percent}%</p>` : `<p class="text-sm font-display text-primary mb-2">${p.price.toLocaleString('fr-FR')} FCFA</p>`}
+              <div class="mt-2 flex gap-2 justify-end">
+                <button onclick="openProductModal(${JSON.stringify(p).replace(/"/g, '&quot;')})" class="text-xs text-primary hover:underline">Modifier</button>
+                <button onclick="if(confirm('Supprimer ce produit ?')) { deleteProduct('${p.id}').then(() => renderAll()); }" class="text-xs text-red-500 hover:underline">Suppr.</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      const getStatusBadge = (status) => { const styles = { "Nouvelle demande": "bg-blue-100 text-blue-700", "Confirmée": "bg-yellow-100 text-yellow-700", "Livrée & Payée": "bg-green-100 text-green-700" }; return styles[status] || "bg-gray-100 text-gray-700"; };
+      document.getElementById("order-list").innerHTML = orders.map(o => {
+        const itemCount = (o.items || []).length; const allowedStatuses = getNextStatuses(o.status); const isLocked = o.status === "Livrée & Payée";
+        return `<div class="bg-white p-4 border border-border mb-3"><div class="flex justify-between items-center mb-2"><span class="text-xs font-bold text-primary">${o.id}</span><span class="text-[10px] px-2 py-1 uppercase font-medium ${getStatusBadge(o.status)}">${o.status}</span></div><p class="text-sm font-medium">${o.client || "Client inconnu"}</p><p class="text-xs text-muted-foreground mb-3">${itemCount} article(s) • ${o.zone || "Zone non précisée"}</p><div class="flex justify-between items-center"><p class="text-sm font-display text-primary">${o.total.toLocaleString('fr-FR')} FCFA</p><div class="flex gap-2 items-center"><button onclick="openOrderDetails('${o.id}')" class="text-xs text-primary underline hover:no-underline">Détails</button>${isLocked ? `<span class="text-[10px] uppercase tracking-widest text-green-600 font-medium flex items-center gap-1"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg> Terminée</span>` : `<select onchange="updateOrderStatus('${o.id}', this.value).then(() => renderAll())" class="text-xs border border-border p-1 bg-background outline-none">${allowedStatuses.map(s => `<option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>`).join("")}</select>`}</div></div></div>`;
+      }).join("");
+
+      document.getElementById("supplier-list").innerHTML = suppliers.length === 0 ? `<p class="text-sm text-muted-foreground italic text-center py-4">Aucun fournisseur.</p>` : suppliers.map(s => `<div class="bg-white p-4 border border-border flex justify-between items-start mb-3"><div><p class="font-medium text-sm">${s.name}</p><p class="text-xs text-muted-foreground">${s.phone}</p>${s.notes ? `<p class="text-xs mt-1 italic">"${s.notes}"</p>` : ""}</div><button onclick="if(confirm('Supprimer ce fournisseur ?')) { deleteSupplier('${s.id}').then(() => renderAll()); }" class="text-xs text-red-500 hover:underline">Suppr.</button></div>`).join("");
+
+      const stats = getFinancialStats();
+      document.getElementById("finance-dashboard").innerHTML = `<div class="bg-white p-4 border-l-4 border-green-500 shadow-sm"><p class="text-xs text-muted-foreground uppercase">Chiffre d'Affaires (Commandes livrées)</p><p class="text-2xl font-display text-green-700 mt-1">${stats.revenue.toLocaleString('fr-FR')} FCFA</p></div><div class="bg-white p-4 border-l-4 border-red-500 shadow-sm"><p class="text-xs text-muted-foreground uppercase">Total Dépenses</p><p class="text-2xl font-display text-red-700 mt-1">- ${stats.totalExpenses.toLocaleString('fr-FR')} FCFA</p></div><div class="bg-white p-4 border-l-4 border-orange-400 shadow-sm"><p class="text-xs text-muted-foreground uppercase">Coût d'achat des produits vendus</p><p class="text-2xl font-display text-orange-600 mt-1">- ${stats.costOfGoodsSold.toLocaleString('fr-FR')} FCFA</p></div><div class="bg-primary p-4 shadow-md mt-4"><p class="text-xs text-primary-foreground/80 uppercase font-medium">Bénéfice Net Estimé</p><p class="text-3xl font-display text-white mt-1">${stats.netProfit.toLocaleString('fr-FR')} FCFA</p></div>`;
+      const totalExpenses = expenses.reduce((sum, e) => sum + Number(e.amount), 0);
+      document.getElementById("expense-list").innerHTML = expenses.length === 0 ? `<p class="text-sm text-muted-foreground italic text-center py-4">Aucune dépense.</p>` : expenses.map(e => { const dateStr = new Date(e.date).toLocaleDateString('fr-FR'); return `<div class="bg-white p-4 border border-border flex justify-between items-start mb-3"><div><p class="font-medium text-sm">${e.desc || e.desc_text || ""}</p><p class="text-[10px] text-muted-foreground uppercase">${e.cat} • ${dateStr}</p></div><div class="text-right"><p class="text-sm font-display text-red-600 font-medium">- ${Number(e.amount).toLocaleString('fr-FR')} FCFA</p><button onclick="if(confirm('Supprimer cette dépense ?')) { deleteExpense('${e.id}').then(() => renderAll()); }" class="text-[10px] text-red-400 hover:underline mt-1">Suppr.</button></div></div>`; }).join("") + (expenses.length > 0 ? `<div class="bg-white p-4 border-2 border-primary mt-4 flex justify-between items-center"><p class="text-sm font-bold uppercase">Total Dépenses</p><p class="text-lg font-display text-primary font-bold">${totalExpenses.toLocaleString('fr-FR')} FCFA</p></div>` : "");
+
+      document.getElementById("set-whatsapp").value = settings.whatsapp;
+      document.getElementById("set-name").value = settings.shopName;
+      document.getElementById("set-hero-text").value = settings.heroText;
+      document.getElementById("set-hero-line1").value = settings.heroLine1;
+      document.getElementById("set-hero-line2").value = settings.heroLine2;
+      document.getElementById("set-hero-subtext").value = settings.heroSubtext;
+
+      // Mot de passe + indice
+      document.getElementById("set-password").value = settings.adminPassword || "";
+      const defaultPwd = (settings.shopName || "HADSHOP").toLowerCase().replace(/\s+/g, "") + "2026";
+      document.getElementById("default-password-hint").textContent = defaultPwd;
+
+      // ✅ Image d'accueil
+      const heroBase64 = settings.heroImage || "";
+      document.getElementById("hero-image-base64").value = heroBase64;
+      if (heroBase64) {
+        document.getElementById("hero-preview-img").src = heroBase64;
+        document.getElementById("hero-image-preview").classList.remove("hidden");
+        document.getElementById("hero-upload-status").textContent = "Image actuelle";
+      } else {
+        document.getElementById("hero-image-preview").classList.add("hidden");
+        document.getElementById("hero-upload-status").textContent = "";
+      }
+
+      const themePicker = document.getElementById("theme-picker");
+      if (themePicker) {
+        themePicker.innerHTML = Object.entries(THEMES).map(([key, theme]) => {
+          const isActive = settings.theme === key;
+          const c = theme.colors;
+          return `
+            <button type="button" onclick="selectTheme('${key}')" class="border-2 p-3 text-left transition-all rounded ${isActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}">
+              <div class="flex gap-1 mb-2">
+                <div class="w-5 h-5 rounded-full border border-white/30" style="background:${c.primary}"></div>
+                <div class="w-5 h-5 rounded-full border border-white/30" style="background:${c.blush}"></div>
+                <div class="w-5 h-5 rounded-full border border-white/30" style="background:${c.gold}"></div>
+                <div class="w-5 h-5 rounded-full border border-white/30" style="background:${c.background}"></div>
+              </div>
+              <p class="text-xs font-medium ${isActive ? 'text-primary' : ''}">${theme.name}</p>
+              <p class="text-[10px] text-muted-foreground">${theme.description}</p>
+            </button>
+          `;
+        }).join("");
+      }
+      document.getElementById("current-theme-name").textContent = (THEMES[settings.theme] || THEMES.bordeaux).name;
+
+      document.getElementById("category-list").innerHTML = settings.categories.map((c, index) => `
+        <li class="flex justify-between items-center bg-background p-3 border border-border">
+          <span class="text-sm font-medium">${c}</span>
+          <button onclick="deleteCategory(${index})" class="text-red-500 hover:text-red-700 text-xs uppercase font-medium">Supprimer</button>
+        </li>
+      `).join("");
+    }
+
+    async function deleteCategory(index) {
+      if (!confirm("Supprimer cette catégorie ? (Les produits liés ne seront pas supprimés).")) return;
+      const settings = getSettings();
+      settings.categories.splice(index, 1);
+      await saveSettings({ categories: settings.categories });
+      localStorage.setItem("hadshop_settings", JSON.stringify(CACHE.settings));
+      renderAll();
+    }
+
+    function updatePromoPreview() {
+      const price = Number(document.getElementById("p-price").value); const promo = Number(document.getElementById("p-promo").value); const preview = document.getElementById("promo-preview");
+      if (price > 0 && promo > 0 && promo < price) { const percent = Math.round(((price - promo) / price) * 100); preview.textContent = `→ -${percent}% (économie de ${(price - promo).toLocaleString('fr-FR')} FCFA)`; preview.classList.remove("hidden"); } else { preview.classList.add("hidden"); }
+    }
+  </script>
+</body>
+</html>

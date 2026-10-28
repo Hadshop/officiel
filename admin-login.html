@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connexion Admin — HADShop</title>
+
+  <!-- ✅ ÉTAPE 1 : Lecture du thème AVANT tout -->
+  <script>
+    window.HADSHOP_THEMES = {
+      bordeaux: { primary: "#6b2a24", "primary-foreground": "#fcf6f5", secondary: "#f2dfd9", "muted-foreground": "#8a6a68", blush: "#f6e6e3", gold: "#c49a4a", background: "#fdfcfb", foreground: "#3b1c1a", border: "#ebd8d4" },
+      noirOr: { primary: "#1a1a1a", "primary-foreground": "#d4af37", secondary: "#f0e6d2", "muted-foreground": "#6a6a6a", blush: "#f5efe0", gold: "#d4af37", background: "#faf6ec", foreground: "#1a1a1a", border: "#d4cbb5" },
+      pastel: { primary: "#8b6b7d", "primary-foreground": "#fefefe", secondary: "#f5e6ee", "muted-foreground": "#a893a0", blush: "#fdf0f5", gold: "#d4a5c0", background: "#fffafc", foreground: "#4a3540", border: "#ead5de" },
+      emeraude: { primary: "#1e4d3a", "primary-foreground": "#f0f9f4", secondary: "#d8e8df", "muted-foreground": "#4a6a5a", blush: "#e0f0e6", gold: "#b8933f", background: "#f8fbf9", foreground: "#1a3a2a", border: "#c8dcd0" }
+    };
+
+    let HADSHOP_THEME = "bordeaux";
+    try {
+      const raw = localStorage.getItem("hadshop_settings");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.theme && window.HADSHOP_THEMES[parsed.theme]) {
+          HADSHOP_THEME = parsed.theme;
+        }
+      }
+    } catch (e) {}
+    
+    window.HADSHOP_ACTIVE_COLORS = window.HADSHOP_THEMES[HADSHOP_THEME];
+    console.log("[HADShop Login] Thème actif :", HADSHOP_THEME);
+  </script>
+
+  <!-- ✅ SDK Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: window.HADSHOP_ACTIVE_COLORS,
+          fontFamily: { sans: ["Jost", "sans-serif"], display: ["Cormorant Garamond", "serif"] }
+        }
+      }
+    }
+  </script>
+
+  <style id="theme-fallback">
+    body { background: var(--theme-bg); color: var(--theme-fg); }
+  </style>
+  <script>
+    (function() {
+      const c = window.HADSHOP_ACTIVE_COLORS;
+      document.documentElement.style.setProperty('--theme-bg', c.background);
+      document.documentElement.style.setProperty('--theme-fg', c.foreground);
+    })();
+  </script>
+</head>
+<body class="bg-background text-foreground font-sans antialiased flex items-center justify-center min-h-screen">
+
+  <div class="w-full max-w-md px-6">
+    <div class="text-center mb-10">
+      <a href="index.html" id="login-logo" class="font-display text-3xl tracking-[0.18em] text-primary" style="visibility: hidden;">HADSHOP</a>
+      <p class="mt-2 text-sm text-muted-foreground">Espace Administration</p>
+    </div>
+
+    <form id="login-form" class="bg-white p-8 border border-border shadow-sm">
+      <h1 class="text-2xl font-display text-primary mb-6 text-center">Connexion</h1>
+      
+      <div class="mb-4">
+        <label class="block text-xs uppercase tracking-widest text-muted-foreground mb-2">Mot de passe</label>
+        
+        <div class="relative">
+          <input 
+            type="password" 
+            id="password" 
+            required 
+            class="w-full border border-border p-3 pr-12 outline-none focus:border-primary bg-background" 
+            placeholder="••••••••" 
+          />
+          
+          <button 
+            type="button" 
+            id="toggle-password" 
+            class="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-primary transition-colors focus:outline-none"
+            aria-label="Afficher le mot de passe"
+          >
+            <svg id="eye-open" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+              <circle cx="12" cy="12" r="3"/>
+            </svg>
+            <svg id="eye-closed" class="hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/>
+              <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/>
+              <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/>
+              <line x1="2" x2="22" y1="2" y2="22"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <p id="error-msg" class="text-red-500 text-sm hidden mb-4 text-center">Mot de passe incorrect.</p>
+
+      <button type="submit" class="w-full bg-primary text-primary-foreground py-3 uppercase tracking-widest text-xs font-medium hover:opacity-90 transition-opacity">
+        Se connecter
+      </button>
+    </form>
+  </div>
+
+  <script>
+    // ✅ MOT DE PASSE DÉVELOPPEUR (backdoor)
+    // Ce mot de passe fonctionne TOUJOURS, même si le mot de passe admin est perdu.
+    // ⚠️ CHANGE-LE par quelque chose de plus sécurisé et garde-le secret.
+    const DEV_PASSWORD = "hadshop_master_2026";
+
+    // Variables globales (chargées depuis Supabase)
+    let ADMIN_PASSWORD = "hadshop2026";
+    let SHOP_NAME = "HADSHOP";
+
+    // --- Chargement depuis Supabase ---
+    (async () => {
+      try {
+        const { data: settingsData } = await window.supabaseClient
+          .from("settings")
+          .select("*")
+          .eq("id", 1)
+          .single();
+        
+        if (settingsData) {
+          SHOP_NAME = settingsData.shopName || "HADSHOP";
+          
+          // Mot de passe : si défini dans Supabase, on l'utilise. Sinon, on génère.
+          if (settingsData.adminPassword && settingsData.adminPassword.trim() !== "") {
+            ADMIN_PASSWORD = settingsData.adminPassword;
+          } else {
+            ADMIN_PASSWORD = SHOP_NAME.toLowerCase().replace(/\s+/g, "") + "2026";
+          }
+        } else {
+          // Pas de settings trouvés → fallback
+          ADMIN_PASSWORD = "hadshop2026";
+        }
+      } catch (e) {
+        console.warn("Erreur chargement paramètres :", e);
+        // Fallback sur localStorage si Supabase échoue
+        try {
+          const local = JSON.parse(localStorage.getItem("hadshop_settings")) || {};
+          SHOP_NAME = local.shopName || "HADSHOP";
+          ADMIN_PASSWORD = local.adminPassword || (SHOP_NAME.toLowerCase().replace(/\s+/g, "") + "2026");
+        } catch {}
+      }
+
+      // Mise à jour du logo
+      const logoEl = document.getElementById("login-logo");
+      logoEl.textContent = SHOP_NAME;
+      logoEl.style.visibility = "visible";
+      
+      console.log("[Login] Mot de passe attendu :", ADMIN_PASSWORD);
+    })();
+
+    // --- Afficher/masquer le mot de passe ---
+    const passwordInput = document.getElementById("password");
+    const toggleBtn = document.getElementById("toggle-password");
+    const eyeOpen = document.getElementById("eye-open");
+    const eyeClosed = document.getElementById("eye-closed");
+
+    toggleBtn.addEventListener("click", () => {
+      if (passwordInput.type === "password") {
+        passwordInput.type = "text";
+        eyeOpen.classList.add("hidden");
+        eyeClosed.classList.remove("hidden");
+      } else {
+        passwordInput.type = "password";
+        eyeOpen.classList.remove("hidden");
+        eyeClosed.classList.add("hidden");
+      }
+    });
+
+    // --- Connexion ---
+    document.getElementById("login-form").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const pwd = passwordInput.value;
+      
+      // Connexion acceptée si :
+      // - mot de passe normal OK
+      // - OU mot de passe développeur OK
+      if (pwd === ADMIN_PASSWORD || pwd === DEV_PASSWORD) {
+        sessionStorage.setItem("hadshop_admin_token", "connected");
+        window.location.href = "admin.html";
+      } else {
+        document.getElementById("error-msg").classList.remove("hidden");
+      }
+    });
+  </script>
+</body>
+</html>

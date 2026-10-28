@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6b1f2e" />
+  <title>À propos & contact — HADShop</title>
+  <meta name="description" content="Découvrez HADShop et contactez-nous sur WhatsApp." />
+
+  <!-- ✅ ÉTAPE 1 : Lecture du thème AVANT tout -->
+  <script>
+    window.HADSHOP_THEMES = {
+      bordeaux: { primary: "#6b2a24", "primary-foreground": "#fcf6f5", secondary: "#f2dfd9", "muted-foreground": "#8a6a68", blush: "#f6e6e3", gold: "#c49a4a", background: "#fdfcfb", foreground: "#3b1c1a", border: "#ebd8d4" },
+      noirOr: { primary: "#1a1a1a", "primary-foreground": "#d4af37", secondary: "#f0e6d2", "muted-foreground": "#6a6a6a", blush: "#f5efe0", gold: "#d4af37", background: "#faf6ec", foreground: "#1a1a1a", border: "#d4cbb5" },
+      pastel: { primary: "#8b6b7d", "primary-foreground": "#fefefe", secondary: "#f5e6ee", "muted-foreground": "#a893a0", blush: "#fdf0f5", gold: "#d4a5c0", background: "#fffafc", foreground: "#4a3540", border: "#ead5de" },
+      emeraude: { primary: "#1e4d3a", "primary-foreground": "#f0f9f4", secondary: "#d8e8df", "muted-foreground": "#4a6a5a", blush: "#e0f0e6", gold: "#b8933f", background: "#f8fbf9", foreground: "#1a3a2a", border: "#c8dcd0" }
+    };
+
+    let HADSHOP_THEME = "bordeaux";
+    try {
+      const raw = localStorage.getItem("hadshop_settings");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.theme && window.HADSHOP_THEMES[parsed.theme]) {
+          HADSHOP_THEME = parsed.theme;
+        }
+      }
+    } catch (e) {}
+    
+    window.HADSHOP_ACTIVE_COLORS = window.HADSHOP_THEMES[HADSHOP_THEME];
+    console.log("[HADShop À propos] Thème actif :", HADSHOP_THEME);
+  </script>
+
+  <!-- ✅ SDK Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: window.HADSHOP_ACTIVE_COLORS,
+          fontFamily: { sans: ["Jost", "sans-serif"], display: ["Cormorant Garamond", "serif"] }
+        }
+      }
+    }
+  </script>
+
+  <style id="theme-fallback">
+    body { background: var(--theme-bg); color: var(--theme-fg); }
+  </style>
+  <script>
+    (function() {
+      const c = window.HADSHOP_ACTIVE_COLORS;
+      document.documentElement.style.setProperty('--theme-bg', c.background);
+      document.documentElement.style.setProperty('--theme-fg', c.foreground);
+    })();
+  </script>
+</head>
+<body class="bg-background text-foreground font-sans antialiased flex flex-col min-h-screen">
+
+  <header class="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+    <div class="mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4">
+      <div class="flex items-center gap-6">
+        <button aria-label="Menu" class="md:hidden" onclick="document.getElementById('mobile-menu').classList.remove('hidden')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <nav class="hidden gap-6 md:flex">
+          <a href="index.html" class="eyebrow hover:text-primary transition-colors">Accueil</a>
+          <a href="boutique.html" class="eyebrow hover:text-primary transition-colors">Boutique</a>
+          <a href="a-propos.html" class="eyebrow hover:text-primary transition-colors text-primary">À propos</a>
+        </nav>
+      </div>
+      <a href="index.html" id="header-logo" class="font-display text-2xl tracking-[0.18em] text-primary" style="visibility: hidden;">HADSHOP</a>
+      <div class="flex justify-end">
+        <a href="panier.html" aria-label="Panier" class="relative p-1 hover:text-primary transition-colors">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span id="cart-badge" class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground" hidden>0</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div id="mobile-menu" class="hidden fixed inset-0 z-50 bg-background">
+    <div class="flex h-16 items-center justify-between px-4">
+      <span id="mobile-logo" class="font-display text-2xl tracking-[0.18em] text-primary" style="visibility: hidden;">HADSHOP</span>
+      <button onclick="document.getElementById('mobile-menu').classList.add('hidden')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <nav class="flex flex-col gap-8 px-8 pt-12">
+      <a href="index.html" class="font-display text-4xl text-primary">Accueil</a>
+      <a href="boutique.html" class="font-display text-4xl text-primary">Boutique</a>
+      <a href="a-propos.html" class="font-display text-4xl text-primary">À propos</a>
+      <a href="panier.html" class="font-display text-4xl text-primary">Panier</a>
+    </nav>
+  </div>
+
+  <main class="flex-grow">
+    <div class="mx-auto max-w-xl px-6 pt-16 text-center">
+      <p class="eyebrow text-muted-foreground">La maison</p>
+      <h1 class="mt-3 text-5xl text-primary font-display">À propos</h1>
+      
+      <p id="about-intro" class="mt-8 leading-relaxed text-muted-foreground">
+        HADShop sélectionne des sacs, parfums, vêtements et accessoires pour les femmes qui aiment
+        les belles choses. Chaque commande est suivie personnellement, du premier message jusqu'à la livraison.
+      </p>
+
+      <div class="mt-12 bg-blush p-8">
+        <h2 class="text-3xl text-primary font-display">Nous contacter</h2>
+        <p class="mt-3 text-sm text-muted-foreground">Réponse rapide sur WhatsApp, 7j/7.</p>
+        
+        <a id="contact-wa-btn" href="#" target="_blank" rel="noreferrer" class="btn-primary mt-6 inline-flex">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+          Écrire sur WhatsApp
+        </a>
+      </div>
+    </div>
+  </main>
+
+  <footer class="mt-12 bg-primary text-primary-foreground relative">
+    <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-6 text-center md:flex-row md:text-left">
+      <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+        <p id="footer-logo" class="font-display text-xl tracking-[0.18em]" style="visibility: hidden;">HADSHOP</p>
+        <span class="hidden md:inline text-[10px] opacity-60">|</span>
+        <p id="footer-slogan" class="text-[10px] opacity-80" style="visibility: hidden;">Mode, sacs, parfums & accessoires.</p>
+      </div>
+
+      <a id="footer-wa-link" href="#" target="_blank" rel="noreferrer" class="eyebrow inline-flex items-center gap-1.5 border-b border-primary-foreground/30 pb-0.5 hover:opacity-80 transition-opacity text-[0.65rem]">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg> Nous écrire sur WhatsApp
+      </a>
+
+      <p id="secret-trigger" class="text-[10px] opacity-60 cursor-pointer select-none active:opacity-100 transition-opacity">
+        © 2026 HADShop
+      </p>
+    </div>
+    
+    <div id="admin-toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#222] text-white px-6 py-3 rounded-full text-sm shadow-xl transition-all duration-300 opacity-0 translate-y-4 z-50 pointer-events-none flex items-center gap-2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-green-400"><path d="M20 6 9 17l-5-5"/></svg>
+      Mode Administrateur activé...
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      
+      // ✅ Chargement depuis Supabase
+      let settings = null;
+      
+      try {
+        const { data: settingsData } = await window.supabaseClient
+          .from("settings")
+          .select("*")
+          .eq("id", 1)
+          .single();
+        if (settingsData) settings = settingsData;
+      } catch (e) {
+        console.warn("Erreur chargement paramètres :", e);
+      }
+
+      const WHATSAPP_NUMBER = (settings && settings.whatsapp) ? settings.whatsapp : "2290191647720";
+      const SHOP_NAME = (settings && settings.shopName) ? settings.shopName : "HADSHOP";
+      const HERO_TEXT = (settings && settings.heroText) ? settings.heroText : "Mode, sacs, parfums & accessoires.";
+      const ABOUT_TEXT = (settings && settings.aboutText) ? settings.aboutText : "HADShop sélectionne des sacs, parfums, vêtements et accessoires pour les femmes qui aiment les belles choses. Chaque commande est suivie personnellement, du premier message jusqu'à la livraison.";
+
+      const waUrl = `https://wa.me/${WHATSAPP_NUMBER}`;
+      document.getElementById("contact-wa-btn").href = waUrl;
+      document.getElementById("footer-wa-link").href = waUrl;
+      
+      document.getElementById("header-logo").textContent = SHOP_NAME;
+      document.getElementById("mobile-logo").textContent = SHOP_NAME;
+      document.getElementById("footer-logo").textContent = SHOP_NAME;
+      document.getElementById("footer-slogan").textContent = HERO_TEXT;
+      document.getElementById("about-intro").textContent = ABOUT_TEXT;
+
+      document.getElementById("header-logo").style.visibility = "visible";
+      document.getElementById("mobile-logo").style.visibility = "visible";
+      document.getElementById("footer-logo").style.visibility = "visible";
+      document.getElementById("footer-slogan").style.visibility = "visible";
+
+      const getCart = () => { try { return JSON.parse(localStorage.getItem("hadshop-cart")) || []; } catch { return []; } };
+      const count = getCart().reduce((s, l) => s + l.qty, 0);
+      const badge = document.getElementById("cart-badge");
+      if (badge) { badge.textContent = count; badge.hidden = count === 0; }
+
+      const trigger = document.getElementById("secret-trigger");
+      const toast = document.getElementById("admin-toast");
+      let clickCount = 0;
+      let clickTimeout = null;
+
+      trigger.addEventListener("click", () => {
+        clickCount++;
+        if (clickTimeout) clearTimeout(clickTimeout);
+
+        if (clickCount === 3) {
+          toast.classList.remove("opacity-0", "translate-y-4");
+          toast.classList.add("opacity-100", "translate-y-0");
+          clickTimeout = setTimeout(() => {
+            window.location.href = "admin-login.html";
+          }, 1500);
+          clickCount = 0;
+        } else {
+          clickTimeout = setTimeout(() => { clickCount = 0; }, 1000);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

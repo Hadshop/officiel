@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6b1f2e" />
+  <title>Article — HADShop</title>
+
+  <!-- ✅ ÉTAPE 1 : Lecture du thème AVANT tout -->
+  <script>
+    window.HADSHOP_THEMES = {
+      bordeaux: { primary: "#6b2a24", "primary-foreground": "#fcf6f5", secondary: "#f2dfd9", "muted-foreground": "#8a6a68", blush: "#f6e6e3", gold: "#c49a4a", background: "#fdfcfb", foreground: "#3b1c1a", border: "#ebd8d4" },
+      noirOr: { primary: "#1a1a1a", "primary-foreground": "#d4af37", secondary: "#f0e6d2", "muted-foreground": "#6a6a6a", blush: "#f5efe0", gold: "#d4af37", background: "#faf6ec", foreground: "#1a1a1a", border: "#d4cbb5" },
+      pastel: { primary: "#8b6b7d", "primary-foreground": "#fefefe", secondary: "#f5e6ee", "muted-foreground": "#a893a0", blush: "#fdf0f5", gold: "#d4a5c0", background: "#fffafc", foreground: "#4a3540", border: "#ead5de" },
+      emeraude: { primary: "#1e4d3a", "primary-foreground": "#f0f9f4", secondary: "#d8e8df", "muted-foreground": "#4a6a5a", blush: "#e0f0e6", gold: "#b8933f", background: "#f8fbf9", foreground: "#1a3a2a", border: "#c8dcd0" }
+    };
+
+    let HADSHOP_THEME = "bordeaux";
+    try {
+      const raw = localStorage.getItem("hadshop_settings");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.theme && window.HADSHOP_THEMES[parsed.theme]) {
+          HADSHOP_THEME = parsed.theme;
+        }
+      }
+    } catch (e) {}
+    
+    window.HADSHOP_ACTIVE_COLORS = window.HADSHOP_THEMES[HADSHOP_THEME];
+    console.log("[HADShop Produit] Thème actif :", HADSHOP_THEME);
+  </script>
+
+  <!-- ✅ SDK Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: window.HADSHOP_ACTIVE_COLORS,
+          fontFamily: { sans: ["Jost", "sans-serif"], display: ["Cormorant Garamond", "serif"] }
+        }
+      }
+    }
+  </script>
+
+  <style id="theme-fallback">
+    body { background: var(--theme-bg); color: var(--theme-fg); }
+  </style>
+  <script>
+    (function() {
+      const c = window.HADSHOP_ACTIVE_COLORS;
+      document.documentElement.style.setProperty('--theme-bg', c.background);
+      document.documentElement.style.setProperty('--theme-fg', c.foreground);
+    })();
+  </script>
+</head>
+<body class="bg-background text-foreground font-sans antialiased flex flex-col min-h-screen">
+
+  <header class="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+    <div class="mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4">
+      <div class="flex items-center gap-6">
+        <button aria-label="Menu" class="md:hidden" onclick="document.getElementById('mobile-menu').classList.remove('hidden')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <nav class="hidden gap-6 md:flex">
+          <a href="index.html" class="eyebrow hover:text-primary transition-colors">Accueil</a>
+          <a href="boutique.html" class="eyebrow hover:text-primary transition-colors text-primary">Boutique</a>
+          <a href="a-propos.html" class="eyebrow hover:text-primary transition-colors">À propos</a>
+        </nav>
+      </div>
+      <a href="index.html" id="header-logo" class="font-display text-2xl tracking-[0.18em] text-primary" style="visibility: hidden;">HADSHOP</a>
+      <div class="flex justify-end">
+        <a href="panier.html" aria-label="Panier" class="relative p-1 hover:text-primary transition-colors">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span id="cart-badge" class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground" hidden>0</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div id="mobile-menu" class="hidden fixed inset-0 z-50 bg-background">
+    <div class="flex h-16 items-center justify-between px-4">
+      <span id="mobile-logo" class="font-display text-2xl tracking-[0.18em] text-primary" style="visibility: hidden;">HADSHOP</span>
+      <button onclick="document.getElementById('mobile-menu').classList.add('hidden')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <nav class="flex flex-col gap-8 px-8 pt-12">
+      <a href="index.html" class="font-display text-4xl text-primary">Accueil</a>
+      <a href="boutique.html" class="font-display text-4xl text-primary">Boutique</a>
+      <a href="a-propos.html" class="font-display text-4xl text-primary">À propos</a>
+      <a href="panier.html" class="font-display text-4xl text-primary">Panier</a>
+    </nav>
+  </div>
+
+  <main id="product-app" class="flex-grow"></main>
+
+  <footer class="mt-12 bg-primary text-primary-foreground relative">
+    <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-6 text-center md:flex-row md:text-left">
+      <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+        <p id="footer-logo" class="font-display text-xl tracking-[0.18em]" style="visibility: hidden;">HADSHOP</p>
+        <span class="hidden md:inline text-[10px] opacity-60">|</span>
+        <p id="footer-slogan" class="text-[10px] opacity-80" style="visibility: hidden;">Mode, sacs, parfums & accessoires.</p>
+      </div>
+
+      <a id="footer-wa-link" href="#" target="_blank" rel="noreferrer" class="eyebrow inline-flex items-center gap-1.5 border-b border-primary-foreground/30 pb-0.5 hover:opacity-80 transition-opacity text-[0.65rem]">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg> Nous écrire sur WhatsApp
+      </a>
+
+      <p id="secret-trigger" class="text-[10px] opacity-60 cursor-pointer select-none active:opacity-100 transition-opacity">
+        © 2026 HADShop
+      </p>
+    </div>
+    
+    <div id="admin-toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#222] text-white px-6 py-3 rounded-full text-sm shadow-xl transition-all duration-300 opacity-0 translate-y-4 z-50 pointer-events-none flex items-center gap-2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-green-400"><path d="M20 6 9 17l-5-5"/></svg>
+      Mode Administrateur activé...
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      
+      const DEFAULT_PRODUCTS = [
+        { id: "sac-lady-gris", name: "Sac Lady Gris", category: "Sacs", price: 120000, promoPrice: null, images: ["https://images.unsplash.com/photo-1584917865442-de89df76afd3?w=900&q=80"], image: null, stock: 10, description: "Sac structuré en cuir grainé, anse rigide et bandoulière amovible." },
+        { id: "parfum-eclat", name: "Parfum Éclat", category: "Parfums", price: 85000, promoPrice: 65000, images: ["https://images.unsplash.com/photo-1541643600914-78b084683601?w=900&q=80"], image: null, stock: 15, description: "Eau de parfum florale et fruitée, notes de jasmin et de pêche." },
+        { id: "mini-sac-nude", name: "Mini Sac Nude", category: "Sacs", price: 95000, promoPrice: null, images: ["https://images.unsplash.com/photo-1591561954557-26941169b49e?w=900&q=80"], image: null, stock: 8, description: "Petit sac de soirée en cuir lisse, chaîne dorée fine." },
+        { id: "parfum-noir", name: "Parfum Noir", category: "Parfums", price: 110000, promoPrice: null, images: ["https://images.unsplash.com/photo-1585386959984-a4155224a1ad?w=900&q=80"], image: null, stock: 5, description: "Fragrance boisée et ambrée, notes de santal et de vanille." },
+        { id: "montre-acier", name: "Montre Acier", category: "Montres", price: 75000, promoPrice: null, images: ["https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=900&q=80"], image: null, stock: 3, description: "Montre à bracelet acier brossé, cadran minimaliste." },
+        { id: "bracelet-dore", name: "Bracelet Doré", category: "Bijoux", price: 25000, promoPrice: null, images: ["https://images.unsplash.com/photo-1608042314453-ae338d80c427?w=900&q=80"], image: null, stock: 20, description: "Bracelet fin plaqué or, ajustable." },
+        { id: "escarpins-nude", name: "Escarpins Nude", category: "Chaussures", price: 65000, promoPrice: null, images: ["https://images.unsplash.com/photo-1543163521-1bf539c55dd2?w=900&q=80"], image: null, stock: 12, description: "Escarpins à talon de 8 cm, cuir souple." },
+        { id: "gourde-isotherme", name: "Gourde Isotherme", category: "Gourdes & thermos", price: 15000, promoPrice: null, images: ["https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=900&q=80"], image: null, stock: 50, description: "Gourde inox isotherme 500 ml." }
+      ];
+
+      const formatPrice = (n) => new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f|\u00a0/g, " ") + " FCFA";
+
+      // ✅ Chargement depuis Supabase
+      let settings = null;
+      let products = [];
+      
+      try {
+        const { data: settingsData } = await window.supabaseClient
+          .from("settings")
+          .select("*")
+          .eq("id", 1)
+          .single();
+        if (settingsData) settings = settingsData;
+      } catch (e) {
+        console.warn("Erreur chargement paramètres :", e);
+      }
+      
+      try {
+        const { data: productsData } = await window.supabaseClient
+          .from("products")
+          .select("*");
+        if (productsData) products = productsData;
+      } catch (e) {
+        console.warn("Erreur chargement produits :", e);
+      }
+
+      const PRODUCTS = (products && products.length > 0) ? products : DEFAULT_PRODUCTS;
+      const WHATSAPP_NUMBER = (settings && settings.whatsapp) ? settings.whatsapp : "2290191647720";
+      
+      const SHOP_NAME = (settings && settings.shopName) ? settings.shopName : "HADSHOP";
+      const HERO_TEXT = (settings && settings.heroText) ? settings.heroText : "Mode, sacs, parfums & accessoires.";
+
+      const CART_STORAGE = "hadshop-cart";
+      const getCart = () => { try { return JSON.parse(localStorage.getItem(CART_STORAGE)) || []; } catch { return []; } };
+      
+      const updateBadge = () => {
+        const count = getCart().reduce((s, l) => s + l.qty, 0);
+        const badge = document.getElementById("cart-badge");
+        if (badge) { badge.textContent = count; badge.hidden = count === 0; }
+      };
+
+      document.getElementById("header-logo").textContent = SHOP_NAME;
+      document.getElementById("mobile-logo").textContent = SHOP_NAME;
+      document.getElementById("footer-logo").textContent = SHOP_NAME;
+      document.getElementById("footer-slogan").textContent = HERO_TEXT;
+      document.getElementById("footer-wa-link").href = `https://wa.me/${WHATSAPP_NUMBER}`;
+      
+      document.getElementById("header-logo").style.visibility = "visible";
+      document.getElementById("mobile-logo").style.visibility = "visible";
+      document.getElementById("footer-logo").style.visibility = "visible";
+      document.getElementById("footer-slogan").style.visibility = "visible";
+      
+      updateBadge();
+
+      const app = document.getElementById("product-app");
+      const id = new URLSearchParams(window.location.search).get("id");
+      const p = PRODUCTS.find((x) => x.id === id);
+
+      if (!p || (p.stock !== undefined && Number(p.stock) <= 0)) {
+        app.innerHTML = `<div class="py-24 text-center"><p class="text-muted-foreground">Cet article n'est plus disponible.</p><a href="boutique.html" class="btn-primary mt-6 inline-flex">Retour à la boutique</a></div>`;
+        return;
+      }
+
+      let qty = 1;
+      let added = false;
+      const finalPrice = p.promoPrice || p.price;
+      const percent = p.promoPrice ? Math.round(((p.price - p.promoPrice) / p.price) * 100) : 0;
+      const imageToShow = p.image || (p.images && p.images[0]) || "";
+      const maxStock = p.stock !== undefined ? Number(p.stock) : 999;
+
+      let stockText = "";
+      let stockColorClass = "text-muted-foreground";
+      if (p.stock !== undefined) {
+        if (p.stock <= 5) {
+          stockText = `Plus que ${p.stock} en stock !`;
+          stockColorClass = "text-red-600 font-medium";
+        } else {
+          stockText = `En stock (${p.stock} disponibles)`;
+        }
+      } else {
+        stockText = "En stock";
+      }
+
+      function render() {
+        app.innerHTML = `
+          <div class="mx-auto max-w-6xl md:grid md:grid-cols-2 md:gap-12 md:px-4 md:pt-10">
+            <div>
+              <div class="aspect-[4/5] overflow-hidden bg-blush">
+                ${imageToShow ? `<img src="${imageToShow}" alt="${p.name}" class="h-full w-full object-cover" />` : `<div class="h-full w-full flex items-center justify-center text-muted-foreground">Sans image</div>`}
+              </div>
+            </div>
+
+            <div class="px-5 pb-32 pt-6 md:pb-0">
+              <a href="boutique.html?categorie=${encodeURIComponent(p.category)}" class="eyebrow text-muted-foreground hover:text-primary transition-colors">${p.category}</a>
+              <h1 class="mt-2 text-4xl leading-tight text-primary md:text-5xl font-display">${p.name}</h1>
+              
+              <div class="mt-3 flex items-center gap-3">
+                <p class="text-2xl font-medium">${formatPrice(finalPrice)}</p>
+                ${p.promoPrice ? `<p class="text-lg text-muted-foreground line-through">${formatPrice(p.price)}</p><span class="text-xs bg-red-100 text-red-600 px-2 py-1 font-bold rounded">-${percent}%</span>` : ""}
+              </div>
+
+              <p class="mt-2 text-sm ${stockColorClass}">${stockText}</p>
+              
+              <p class="mt-6 leading-relaxed text-muted-foreground">${p.description || "Découvrez cet article HADShop."}</p>
+
+              <div class="mt-8 flex items-center gap-5">
+                <p class="eyebrow">Quantité</p>
+                <div class="flex items-center border border-border">
+                  <button data-qty="-1" class="p-3 hover:bg-secondary transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/></svg></button>
+                  <span class="w-8 text-center">${qty}</span>
+                  <button data-qty="1" class="p-3 hover:bg-secondary transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+                </div>
+              </div>
+
+              <p class="mt-6 text-xs text-muted-foreground">Disponibilité confirmée sur WhatsApp. Livraison ou retrait à convenir ensemble.</p>
+
+              <div class="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background p-4 md:static md:mt-8 md:border-0 md:p-0">
+                ${added ? `<div class="grid grid-cols-2 gap-2"><button data-continue class="btn-outline w-full">Continuer</button><a href="panier.html" class="btn-primary w-full text-center">Voir le panier</a></div>` : `<button data-add class="btn-primary w-full">Ajouter au panier</button>`}
+              </div>
+            </div>
+          </div>
+        `;
+
+        app.querySelectorAll("[data-qty]").forEach((btn) => {
+          btn.onclick = () => { 
+            const newQty = qty + Number(btn.dataset.qty);
+            qty = Math.min(maxStock, Math.max(1, newQty)); 
+            render(); 
+          };
+        });
+        
+        app.querySelector("[data-add]")?.addEventListener("click", () => {
+          const cart = getCart();
+          const key = `${p.id}::`;
+          const found = cart.find(l => l.key === key);
+          
+          if (found) {
+            const totalQty = found.qty + qty;
+            if (totalQty > maxStock) {
+              alert(`Désolé, il ne reste que ${maxStock} article(s) en stock (vous en avez déjà ${found.qty} dans votre panier).`);
+              return;
+            }
+            found.qty = totalQty;
+          } else {
+            if (qty > maxStock) {
+              alert(`Désolé, il ne reste que ${maxStock} article(s) en stock.`);
+              return;
+            }
+            cart.push({ key, productId: p.id, name: p.name, price: finalPrice, variant: null, qty: qty, image: imageToShow });
+          }
+          localStorage.setItem(CART_STORAGE, JSON.stringify(cart));
+          updateBadge();
+          added = true;
+          render();
+        });
+        
+        app.querySelector("[data-continue]")?.addEventListener("click", () => { 
+          window.location.href = "boutique.html";
+        });
+      }
+      render();
+
+      const trigger = document.getElementById("secret-trigger");
+      const toast = document.getElementById("admin-toast");
+      let clickCount = 0;
+      let clickTimeout = null;
+
+      trigger.addEventListener("click", () => {
+        clickCount++;
+        if (clickTimeout) clearTimeout(clickTimeout);
+
+        if (clickCount === 3) {
+          toast.classList.remove("opacity-0", "translate-y-4");
+          toast.classList.add("opacity-100", "translate-y-0");
+          clickTimeout = setTimeout(() => {
+            window.location.href = "admin-login.html";
+          }, 1500);
+          clickCount = 0;
+        } else {
+          clickTimeout = setTimeout(() => { clickCount = 0; }, 1000);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

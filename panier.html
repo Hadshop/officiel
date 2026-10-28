@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#6b1f2e" />
+  <title>Votre panier — HADShop</title>
+  <meta name="description" content="Votre sélection HADShop, à commander sur WhatsApp." />
+
+  <!-- ✅ ÉTAPE 1 : Lecture du thème AVANT tout -->
+  <script>
+    window.HADSHOP_THEMES = {
+      bordeaux: { primary: "#6b2a24", "primary-foreground": "#fcf6f5", secondary: "#f2dfd9", "muted-foreground": "#8a6a68", blush: "#f6e6e3", gold: "#c49a4a", background: "#fdfcfb", foreground: "#3b1c1a", border: "#ebd8d4" },
+      noirOr: { primary: "#1a1a1a", "primary-foreground": "#d4af37", secondary: "#f0e6d2", "muted-foreground": "#6a6a6a", blush: "#f5efe0", gold: "#d4af37", background: "#faf6ec", foreground: "#1a1a1a", border: "#d4cbb5" },
+      pastel: { primary: "#8b6b7d", "primary-foreground": "#fefefe", secondary: "#f5e6ee", "muted-foreground": "#a893a0", blush: "#fdf0f5", gold: "#d4a5c0", background: "#fffafc", foreground: "#4a3540", border: "#ead5de" },
+      emeraude: { primary: "#1e4d3a", "primary-foreground": "#f0f9f4", secondary: "#d8e8df", "muted-foreground": "#4a6a5a", blush: "#e0f0e6", gold: "#b8933f", background: "#f8fbf9", foreground: "#1a3a2a", border: "#c8dcd0" }
+    };
+
+    let HADSHOP_THEME = "bordeaux";
+    try {
+      const raw = localStorage.getItem("hadshop_settings");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.theme && window.HADSHOP_THEMES[parsed.theme]) {
+          HADSHOP_THEME = parsed.theme;
+        }
+      }
+    } catch (e) {}
+    
+    window.HADSHOP_ACTIVE_COLORS = window.HADSHOP_THEMES[HADSHOP_THEME];
+    console.log("[HADShop Panier] Thème actif :", HADSHOP_THEME);
+  </script>
+
+  <!-- ✅ SDK Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase.js"></script>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            ...window.HADSHOP_ACTIVE_COLORS,
+            destructive: "#dc2626"
+          },
+          fontFamily: { sans: ["Jost", "sans-serif"], display: ["Cormorant Garamond", "serif"] }
+        }
+      }
+    }
+  </script>
+
+  <style id="theme-fallback">
+    body { background: var(--theme-bg); color: var(--theme-fg); }
+  </style>
+  <script>
+    (function() {
+      const c = window.HADSHOP_ACTIVE_COLORS;
+      document.documentElement.style.setProperty('--theme-bg', c.background);
+      document.documentElement.style.setProperty('--theme-fg', c.foreground);
+    })();
+  </script>
+</head>
+<body class="bg-background text-foreground font-sans antialiased flex flex-col min-h-screen">
+
+  <header class="sticky top-0 z-40 border-b border-border bg-background/90 backdrop-blur">
+    <div class="mx-auto grid h-16 max-w-6xl grid-cols-[1fr_auto_1fr] items-center px-4">
+      <div class="flex items-center gap-6">
+        <button aria-label="Menu" class="md:hidden" onclick="document.getElementById('mobile-menu').classList.remove('hidden')">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+        </button>
+        <nav class="hidden gap-6 md:flex">
+          <a href="index.html" class="eyebrow hover:text-primary transition-colors">Accueil</a>
+          <a href="boutique.html" class="eyebrow hover:text-primary transition-colors">Boutique</a>
+          <a href="a-propos.html" class="eyebrow hover:text-primary transition-colors">À propos</a>
+        </nav>
+      </div>
+      <a href="index.html" id="header-logo" class="font-display text-2xl tracking-[0.18em] text-primary" style="visibility: hidden;">HADSHOP</a>
+      <div class="flex justify-end">
+        <a href="panier.html" aria-label="Panier" class="relative p-1 text-primary">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4Z"/><path d="M3 6h18"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+          <span id="cart-badge" class="absolute -right-1 -top-1 grid h-4 min-w-4 place-items-center rounded-full bg-primary px-1 text-[10px] text-primary-foreground" hidden>0</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div id="mobile-menu" class="hidden fixed inset-0 z-50 bg-background">
+    <div class="flex h-16 items-center justify-between px-4">
+      <span id="mobile-logo" class="font-display text-2xl tracking-[0.18em] text-primary" style="visibility: hidden;">HADSHOP</span>
+      <button onclick="document.getElementById('mobile-menu').classList.add('hidden')">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <nav class="flex flex-col gap-8 px-8 pt-12">
+      <a href="index.html" class="font-display text-4xl text-primary">Accueil</a>
+      <a href="boutique.html" class="font-display text-4xl text-primary">Boutique</a>
+      <a href="a-propos.html" class="font-display text-4xl text-primary">À propos</a>
+      <a href="panier.html" class="font-display text-4xl text-primary">Panier</a>
+    </nav>
+  </div>
+
+  <main id="cart-app" class="flex-grow"></main>
+
+  <footer class="mt-12 bg-primary text-primary-foreground relative">
+    <div class="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-6 py-6 text-center md:flex-row md:text-left">
+      <div class="flex flex-col md:flex-row md:items-center gap-1 md:gap-4">
+        <p id="footer-logo" class="font-display text-xl tracking-[0.18em]" style="visibility: hidden;">HADSHOP</p>
+        <span class="hidden md:inline text-[10px] opacity-60">|</span>
+        <p id="footer-slogan" class="text-[10px] opacity-80" style="visibility: hidden;">Mode, sacs, parfums & accessoires.</p>
+      </div>
+
+      <a id="footer-wa-link" href="#" target="_blank" rel="noreferrer" class="eyebrow inline-flex items-center gap-1.5 border-b border-primary-foreground/30 pb-0.5 hover:opacity-80 transition-opacity text-[0.65rem]">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg> Nous écrire sur WhatsApp
+      </a>
+
+      <p id="secret-trigger" class="text-[10px] opacity-60 cursor-pointer select-none active:opacity-100 transition-opacity">
+        © 2026 HADShop
+      </p>
+    </div>
+    
+    <div id="admin-toast" class="fixed bottom-20 left-1/2 -translate-x-1/2 bg-[#222] text-white px-6 py-3 rounded-full text-sm shadow-xl transition-all duration-300 opacity-0 translate-y-4 z-50 pointer-events-none flex items-center gap-2">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="text-green-400"><path d="M20 6 9 17l-5-5"/></svg>
+      Mode Administrateur activé...
+    </div>
+  </footer>
+
+  <script>
+    document.addEventListener("DOMContentLoaded", async () => {
+      
+      // ✅ Chargement depuis Supabase
+      let settings = null;
+      let products = [];
+      
+      try {
+        const { data: settingsData } = await window.supabaseClient
+          .from("settings")
+          .select("*")
+          .eq("id", 1)
+          .single();
+        if (settingsData) settings = settingsData;
+      } catch (e) {
+        console.warn("Erreur chargement paramètres :", e);
+      }
+      
+      try {
+        const { data: productsData } = await window.supabaseClient
+          .from("products")
+          .select("*");
+        if (productsData) products = productsData;
+      } catch (e) {
+        console.warn("Erreur chargement produits :", e);
+      }
+
+      const WHATSAPP_NUMBER = (settings && settings.whatsapp) ? settings.whatsapp : "2290191647720";
+      const SHOP_NAME = (settings && settings.shopName) ? settings.shopName : "HADSHOP";
+      const HERO_TEXT = (settings && settings.heroText) ? settings.heroText : "Mode, sacs, parfums & accessoires.";
+
+      const stockMap = {};
+      products.forEach(p => { stockMap[p.id] = Number(p.stock); });
+
+      const STORAGE_KEY = "hadshop-cart";
+      const formatPrice = (n) => new Intl.NumberFormat("fr-FR").format(n).replace(/\u202f|\u00a0/g, " ") + " FCFA";
+      const cartTotal = (lines) => lines.reduce((s, l) => s + l.price * l.qty, 0);
+
+      const getCart = () => { try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch { return []; } };
+      const saveCart = (lines) => { localStorage.setItem(STORAGE_KEY, JSON.stringify(lines)); updateBadge(); };
+
+      const updateBadge = () => {
+        const count = getCart().reduce((s, l) => s + l.qty, 0);
+        const badge = document.getElementById("cart-badge");
+        if (badge) { badge.textContent = count; badge.hidden = count === 0; }
+      };
+
+      document.getElementById("header-logo").textContent = SHOP_NAME;
+      document.getElementById("mobile-logo").textContent = SHOP_NAME;
+      document.getElementById("footer-logo").textContent = SHOP_NAME;
+      document.getElementById("footer-slogan").textContent = HERO_TEXT;
+      document.getElementById("footer-wa-link").href = `https://wa.me/${WHATSAPP_NUMBER}`;
+      
+      document.getElementById("header-logo").style.visibility = "visible";
+      document.getElementById("mobile-logo").style.visibility = "visible";
+      document.getElementById("footer-logo").style.visibility = "visible";
+      document.getElementById("footer-slogan").style.visibility = "visible";
+      
+      updateBadge();
+
+      const app = document.getElementById("cart-app");
+
+      function renderCart() {
+        const lines = getCart();
+
+        if (lines.length === 0) {
+          app.innerHTML = `
+            <div class="px-6 py-24 text-center">
+              <h1 class="text-5xl text-primary font-display">Votre panier</h1>
+              <p class="mt-4 text-muted-foreground">Il est encore vide.</p>
+              <a href="boutique.html" class="btn-primary mt-8 inline-flex">Découvrir la boutique</a>
+            </div>
+          `;
+          return;
+        }
+
+        const total = cartTotal(lines);
+
+        app.innerHTML = `
+          <div class="mx-auto max-w-2xl px-4 pb-40 pt-10">
+            <h1 class="text-center text-5xl text-primary font-display">Votre panier</h1>
+            
+            <ul class="mt-8 divide-y border-y border-border divide-border">
+              ${lines.map(l => `
+                <li class="grid grid-cols-[80px_minmax(0,1fr)_auto] gap-4 py-5">
+                  <img src="${l.image}" alt="${l.name}" class="aspect-[4/5] w-20 object-cover bg-blush" />
+                  <div class="min-w-0">
+                    <p class="font-display text-lg leading-tight">${l.name}</p>
+                    ${l.variant ? `<p class="text-xs text-muted-foreground">${l.variant}</p>` : ""}
+                    <p class="mt-1 text-sm">${formatPrice(l.price)}</p>
+                    <div class="mt-3 inline-flex items-center border border-border">
+                      <button data-minus="${l.key}" class="p-2 hover:bg-secondary transition-colors"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M5 12h14"/></svg></button>
+                      <span class="w-7 text-center text-sm">${l.qty}</span>
+                      <button data-plus="${l.key}" class="p-2 hover:bg-secondary transition-colors"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 5v14M5 12h14"/></svg></button>
+                    </div>
+                  </div>
+                  <div class="flex flex-col items-end justify-between">
+                    <button data-remove="${l.key}" class="hover:text-primary transition-colors"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" class="text-muted-foreground"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+                    <p class="text-sm text-primary font-medium">${formatPrice(l.price * l.qty)}</p>
+                  </div>
+                </li>
+              `).join("")}
+            </ul>
+            
+            <div class="mt-6 flex justify-between text-sm text-muted-foreground"><span>Livraison</span><span>À confirmer</span></div>
+            <div class="mt-2 flex justify-between font-display text-2xl"><span>Total estimé</span><span class="text-primary">${formatPrice(total)}</span></div>
+
+            <div class="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background p-4 md:static md:mt-8 md:border-0 md:p-0">
+              <button id="order-btn" class="btn-primary w-full">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg> 
+                Commander sur WhatsApp
+              </button>
+              <p class="mt-2 text-center text-[11px] text-muted-foreground">Appuyez sur « Envoyer » dans WhatsApp, puis attendez notre confirmation.</p>
+            </div>
+          </div>
+        `;
+
+        app.querySelectorAll("[data-plus]").forEach(btn => {
+          btn.onclick = () => {
+            const lines = getCart();
+            const l = lines.find(x => x.key === btn.dataset.plus);
+            if (l) {
+              const maxStock = stockMap[l.productId];
+              if (maxStock !== undefined && l.qty >= maxStock) {
+                alert(`Désolé, il ne reste que ${maxStock} article(s) en stock.`);
+                return;
+              }
+              l.qty += 1;
+              saveCart(lines);
+              renderCart();
+            }
+          };
+        });
+
+        app.querySelectorAll("[data-minus]").forEach(btn => {
+          btn.onclick = () => {
+            const lines = getCart();
+            const l = lines.find(x => x.key === btn.dataset.minus);
+            if (l) { l.qty = Math.max(1, l.qty - 1); saveCart(lines); renderCart(); }
+          };
+        });
+
+        app.querySelectorAll("[data-remove]").forEach(btn => {
+          btn.onclick = () => {
+            const lines = getCart().filter(x => x.key !== btn.dataset.remove);
+            saveCart(lines); renderCart();
+          };
+        });
+
+        document.getElementById("order-btn").onclick = async () => {
+          const ref = "HAD-" + Math.floor(Math.random() * 90000 + 10000);
+          
+          // ✅ Enregistrer la commande dans Supabase
+          try {
+            const orderData = {
+              id: ref,
+              date: new Date().toISOString(),
+              client: null,
+              phone: null,
+              zone: null,
+              total: total,
+              status: "Nouvelle demande",
+              stockDeducted: false,
+              items: lines.map(l => ({
+                productId: l.productId,
+                name: l.name,
+                qty: l.qty,
+                price: l.price
+              }))
+            };
+            
+            const { error } = await window.supabaseClient.from("orders").insert([orderData]);
+            if (error) {
+              console.error("Erreur enregistrement commande :", error);
+              alert("Attention : la commande n'a pas pu être enregistrée. Elle sera envoyée sur WhatsApp mais pas enregistrée dans le backoffice.");
+            }
+          } catch (e) {
+            console.error("Exception :", e);
+          }
+          
+          const msg = `Bonjour ${SHOP_NAME}, je souhaite commander :\n\nRéf. ${ref}\n\n${lines.map(l => `• ${l.name}${l.variant ? ` (${l.variant})` : ""}\n  ${l.qty} x ${formatPrice(l.price)} = ${formatPrice(l.price * l.qty)}`).join("\n")}\n\nTotal estimé : ${formatPrice(total)}\nFrais de livraison : à confirmer\n\nMon nom :\nMa zone de livraison :`;
+          
+          saveCart([]);
+          window.location.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+        };
+      }
+
+      renderCart();
+
+      const trigger = document.getElementById("secret-trigger");
+      const toast = document.getElementById("admin-toast");
+      let clickCount = 0;
+      let clickTimeout = null;
+
+      trigger.addEventListener("click", () => {
+        clickCount++;
+        if (clickTimeout) clearTimeout(clickTimeout);
+
+        if (clickCount === 3) {
+          toast.classList.remove("opacity-0", "translate-y-4");
+          toast.classList.add("opacity-100", "translate-y-0");
+          clickTimeout = setTimeout(() => {
+            window.location.href = "admin-login.html";
+          }, 1500);
+          clickCount = 0;
+        } else {
+          clickTimeout = setTimeout(() => { clickCount = 0; }, 1000);
+        }
+      });
+    });
+  </script>
+</body>
+</html>
